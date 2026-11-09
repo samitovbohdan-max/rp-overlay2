@@ -1,0 +1,164 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>RP Overlay</title>
+<style>
+:root{--bg:rgba(13,17,25,.96);--card:rgba(255,255,255,.05);--line:rgba(255,255,255,.1);--ink:#e8edf5;--dim:#8d99ad;--acc:#7cf0b2;--acc2:#2dd4bf;--bad:#ff7a7a;font-family:"Segoe UI",system-ui,sans-serif}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:transparent;color:var(--ink);overflow:hidden;user-select:none}
+#app{height:100%;display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--line);border-radius:16px;box-shadow:0 18px 60px rgba(0,0,0,.55);overflow:hidden}
+header{display:flex;align-items:center;gap:10px;padding:10px 12px;-webkit-app-region:drag;border-bottom:1px solid var(--line)}
+header .lg{font-weight:800;letter-spacing:.08em;font-size:12px;color:var(--acc);white-space:nowrap}
+header .hk{margin-left:auto;font-size:12px;color:var(--dim);white-space:nowrap}
+kbd{font:600 11px Consolas,monospace;padding:2px 6px;border-radius:5px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.x{-webkit-app-region:no-drag;border:0;background:transparent;color:var(--dim);font-size:16px;cursor:pointer;border-radius:8px;width:28px;height:28px}.x:hover{background:var(--card);color:var(--ink)}
+.cmdw{padding:12px;-webkit-app-region:no-drag}
+.cmd{display:flex;align-items:center;gap:10px;padding:0 14px;border-radius:12px;border:1.5px solid rgba(124,240,178,.45);background:rgba(0,0,0,.35)}
+.cmd b{color:var(--acc);font:700 18px Consolas,monospace}
+#cmd{flex:1;min-width:0;height:46px;border:0;outline:0;background:transparent;color:var(--ink);font:500 17px Consolas,"Courier New",monospace;user-select:text}
+.hint{margin:8px 2px 0;font-size:12px;color:var(--dim);min-height:17px}
+.hint em{font-style:normal;color:var(--acc)}
+.queue{display:none;margin-top:8px;padding:9px 12px;border-radius:10px;background:rgba(45,212,191,.1);border:1px solid rgba(45,212,191,.35);font-size:13px}
+.queue.on{display:block}.queue b{color:var(--acc2)}.queue code{font-family:Consolas,monospace;color:var(--ink)}
+nav{display:flex;gap:6px;padding:0 12px}
+nav button{border:0;background:transparent;color:var(--dim);font:700 13px "Segoe UI",sans-serif;padding:8px 12px;border-radius:9px;cursor:pointer}
+nav button.on{background:var(--card);color:var(--ink)}
+main{flex:1;min-height:0;overflow:auto;padding:10px 12px 12px}
+main::-webkit-scrollbar{width:8px}main::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px}
+.row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:11px;background:var(--card);margin-bottom:7px;cursor:pointer;border:1px solid transparent}
+.row:hover,.row.sel{border-color:rgba(124,240,178,.45);background:rgba(124,240,178,.07)}
+.row .t{font:700 12px Consolas,monospace;color:var(--acc);min-width:70px}
+.row .n{font-weight:700;font-size:14px}.row .l{font-size:12px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:100%}
+.row .m{flex:1;min-width:0}
+.row .ed{border:1px solid var(--line);background:transparent;color:var(--dim);border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer}.row .ed:hover{color:var(--ink)}
+.btn{border:0;border-radius:10px;padding:9px 14px;font:700 13px "Segoe UI",sans-serif;cursor:pointer;background:var(--acc);color:#06241a}
+.btn.g{background:var(--card);color:var(--ink);border:1px solid var(--line)}.btn.r{background:rgba(255,122,122,.15);color:var(--bad);border:1px solid rgba(255,122,122,.35)}
+.form{display:grid;gap:10px}
+.form label{display:grid;gap:5px;font-size:12px;color:var(--dim);font-weight:700}
+.form input,.form textarea{width:100%;border:1px solid var(--line);outline:0;background:rgba(0,0,0,.3);color:var(--ink);border-radius:9px;padding:9px 11px;font:14px Consolas,monospace;user-select:text}
+.form input:focus,.form textarea:focus{border-color:var(--acc)}
+.form textarea{min-height:110px;resize:vertical}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.note{font-size:12px;color:var(--dim);line-height:1.5}
+.note code{font-family:Consolas,monospace;color:var(--acc)}
+#notes{width:100%;height:100%;min-height:230px;resize:none;border:1px solid var(--line);outline:0;background:rgba(0,0,0,.3);color:var(--ink);border-radius:10px;padding:12px;font:14px/1.5 Consolas,monospace;user-select:text}
+.srow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;font-weight:600}
+.srow small{display:block;color:var(--dim);font-weight:500;font-size:12px;margin-top:2px}
+.srow input[type=text]{width:170px;border:1px solid var(--line);background:rgba(0,0,0,.3);color:var(--ink);border-radius:8px;padding:7px 9px;font:14px Consolas,monospace;user-select:text}
+.srow input[type=range]{width:150px;accent-color:#7cf0b2}
+#toast{position:absolute;left:50%;bottom:14px;transform:translate(-50%,8px);padding:9px 14px;border-radius:10px;background:#0b3a2a;border:1px solid var(--acc);color:#dffbea;font-size:13px;font-weight:600;opacity:0;transition:.2s;pointer-events:none;max-width:90%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#toast.on{opacity:1;transform:translate(-50%,0)}#toast.bad{background:#3a1010;border-color:var(--bad);color:#ffd9d9}
+</style></head><body>
+<div id="app">
+  <header><span class="lg">RP OVERLAY</span><span class="hk">Закрыть: <kbd id="hk">F5</kbd> или <kbd>Esc</kbd></span><button class="x" id="bq" title="Выйти из программы">⏻</button></header>
+  <div class="cmdw">
+    <div class="cmd"><b>&gt;</b><input id="cmd" autocomplete="off" spellcheck="false" placeholder="Команда или название биндера…"></div>
+    <div class="hint" id="hint"></div>
+    <div class="queue" id="queue"></div>
+  </div>
+  <nav><button data-t="b" class="on">Биндеры</button><button data-t="n">Заметки</button><button data-t="s">Настройки</button></nav>
+  <main id="main"></main>
+  <div id="toast"></div>
+</div>
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const api=window.api||{load:async()=>({settings:{hotkey:'F5',nick:'Тест',opacity:.96},notes:'',binders:[{id:'b1',name:'Показать документы',trigger:'/док',lines:['/me достаёт документы','/do Паспорт в руках.']},{id:'b2',name:'Приветствие',trigger:'/привет',lines:['Здравствуйте!']}]}),save(){},copy(){},hide(){},quit(){},setHotkey:async()=>true,onShow(){},onHotkeyError(){}};
+let D=null,tab='b',edit=null,sel=0,queue=null,tt=0;
+const cmd=$('cmd'),main=$('main');
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function save(){api.save(D)}
+function toast(t,bad){const e=$('toast');e.textContent=t;e.className='on'+(bad?' bad':'');clearTimeout(tt);tt=setTimeout(()=>e.className='',2200)}
+/* переменные */
+function fill(s){
+  const n=new Date(),p=v=>String(v).padStart(2,'0');
+  return s.replace(/\{name\}/g,D.settings.nick).replace(/\{date\}/g,p(n.getDate())+'.'+p(n.getMonth()+1)+'.'+n.getFullYear()).replace(/\{time\}/g,p(n.getHours())+':'+p(n.getMinutes()))
+   .replace(/\{rnd\}/g,()=>1+Math.floor(Math.random()*100)).replace(/\{rnd:(\d+)-(\d+)\}/g,(_,a,b)=>{a=+a;b=+b;return a+Math.floor(Math.random()*(b-a+1))});
+}
+function matches(q){q=q.trim().toLowerCase();if(!q)return D.binders;return D.binders.filter(b=>b.name.toLowerCase().includes(q)||b.trigger.toLowerCase().includes(q))}
+/* копирование */
+function copy(text){api.copy(fill(text))}
+function runBinder(b){
+  if(!b.lines.length){toast('В биндере нет строк',1);return}
+  queue={b,i:0};step();
+}
+function step(){
+  const q=queue;if(!q)return;const line=q.b.lines[q.i];copy(line);q.i++;
+  const more=q.i<q.b.lines.length;
+  toast('Скопировано '+q.i+'/'+q.b.lines.length+(more?'. Открой оверлей снова за следующей строкой':''));
+  if(!more)queue=null;
+  cmd.value='';renderQueue();setTimeout(()=>api.hide(),120);
+}
+function renderQueue(){
+  const e=$('queue');if(!queue){e.className='queue';return}
+  e.className='queue on';e.innerHTML='Биндер «<b>'+esc(queue.b.name)+'</b>», следующая строка '+(queue.i+1)+'/'+queue.b.lines.length+': <code>'+esc(fill(queue.b.lines[queue.i]))+'</code><br><span style="color:var(--dim)">Enter с пустой строкой копирует её. Esc сбрасывает очередь.</span>';
+}
+/* командная строка */
+function updHint(){
+  const v=cmd.value,m=matches(v),h=$('hint');
+  if(queue&&!v.trim()){h.innerHTML='<em>Enter</em> — скопировать следующую строку биндера';return}
+  if(!v.trim()){h.innerHTML='Введи текст и нажми <em>Enter</em>: он попадёт в буфер, дальше в игре <kbd>Ctrl</kbd>+<kbd>V</kbd>';return}
+  const exact=D.binders.find(b=>b.trigger.toLowerCase()==v.trim().toLowerCase());
+  if(exact)h.innerHTML='<em>Enter</em> — запустить биндер «'+esc(exact.name)+'»';
+  else if(!/^\//.test(v)&&!/\s/.test(v)&&m.length)h.innerHTML='<em>Enter</em> — запустить «'+esc(m[Math.min(sel,m.length-1)].name)+'» (↑↓ выбор)';
+  else h.innerHTML='<em>Enter</em> — скопировать текст в буфер обмена';
+}
+cmd.addEventListener('input',()=>{sel=0;if(tab!='b'&&cmd.value.trim()){tab='b';tabs()}renderList();updHint()});
+cmd.addEventListener('keydown',e=>{
+  if(e.key=='Enter'){
+    e.preventDefault();const v=cmd.value;
+    if(!v.trim()){if(queue)step();return}
+    const exact=D.binders.find(b=>b.trigger.toLowerCase()==v.trim().toLowerCase());
+    if(exact)return runBinder(exact);
+    const m=matches(v);
+    if(!/^\//.test(v)&&!/\s/.test(v)&&m.length)return runBinder(m[Math.min(sel,m.length-1)]);
+    copy(v);toast('Скопировано: '+fill(v));cmd.value='';updHint();setTimeout(()=>api.hide(),120);
+  }else if(e.key=='ArrowDown'){e.preventDefault();sel=Math.min(sel+1,matches(cmd.value).length-1);renderList();updHint()}
+  else if(e.key=='ArrowUp'){e.preventDefault();sel=Math.max(0,sel-1);renderList();updHint()}
+  else if(e.key=='Escape'){e.preventDefault();if(cmd.value){cmd.value='';renderList();updHint()}else if(queue){queue=null;renderQueue();updHint()}else api.hide()}
+});
+addEventListener('keydown',e=>{if(e.key=='Escape'&&document.activeElement!==cmd)api.hide()});
+/* вкладки */
+function tabs(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==tab));edit=null;render()}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;tabs()});
+function render(){if(tab=='b')renderList();else if(tab=='n')renderNotes();else renderSet()}
+function renderList(){
+  if(tab!='b')return;
+  if(edit){renderEdit();return}
+  const m=matches(cmd.value);
+  let h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span class="note">Нажми на биндер, чтобы скопировать первую строку</span><button class="btn" id="add">+ Новый биндер</button></div>';
+  if(!m.length)h+='<div class="note" style="padding:14px 4px">Ничего не найдено. Enter скопирует введённый текст как есть.</div>';
+  h+=m.map((b,i)=>'<div class="row'+(i==sel&&cmd.value?' sel':'')+'" data-id="'+b.id+'"><span class="t">'+esc(b.trigger)+'</span><span class="m"><span class="n">'+esc(b.name)+'</span><span class="l">'+esc(b.lines.join('  ›  '))+'</span></span><button class="ed" data-e="'+b.id+'">Изменить</button></div>').join('');
+  main.innerHTML=h;
+  $('add').onclick=()=>{edit={id:'b'+Date.now(),name:'',trigger:'',lines:[],isNew:1};renderEdit()};
+}
+main.addEventListener('click',e=>{
+  if(tab!='b'||edit)return;
+  const eb=e.target.closest('[data-e]');if(eb){e.stopPropagation();edit=JSON.parse(JSON.stringify(D.binders.find(b=>b.id==eb.dataset.e)));renderEdit();return}
+  const r=e.target.closest('.row');if(r){const b=D.binders.find(x=>x.id==r.dataset.id);if(b)runBinder(b)}
+});
+function renderEdit(){
+  main.innerHTML='<div class="form"><label>Название<input id="en" value="'+esc(edit.name)+'" placeholder="Например: Приветствие"></label><label>Команда (по ней запускается в строке)<input id="et" value="'+esc(edit.trigger)+'" placeholder="/привет"></label><label>Строки: одна строка = одно сообщение в чат<textarea id="el" placeholder="/me достаёт документы&#10;/do Документы в руках.">'+esc(edit.lines.join('\n'))+'</textarea></label><div class="note">Переменные: <code>{name}</code> твой ник, <code>{time}</code> время, <code>{date}</code> дата, <code>{rnd}</code> число 1–100, <code>{rnd:1-6}</code> своё число.</div><div class="acts"><button class="btn" id="es">Сохранить</button><button class="btn g" id="ec">Отмена</button>'+(edit.isNew?'':'<button class="btn r" id="ed">Удалить</button>')+'</div></div>';
+  $('es').onclick=()=>{const n=$('en').value.trim(),t=$('et').value.trim(),l=$('el').value.split('\n').map(s=>s.trim()).filter(Boolean);
+    if(!n||!t){toast('Заполни название и команду',1);return}
+    if(D.binders.some(b=>b.id!=edit.id&&b.trigger.toLowerCase()==t.toLowerCase())){toast('Такая команда уже есть',1);return}
+    const o={id:edit.id,name:n,trigger:t,lines:l},i=D.binders.findIndex(b=>b.id==edit.id);if(i>=0)D.binders[i]=o;else D.binders.push(o);save();edit=null;renderList();toast('Биндер сохранён')};
+  $('ec').onclick=()=>{edit=null;renderList()};
+  if($('ed'))$('ed').onclick=()=>{if($('ed').dataset.a!='1'){$('ed').dataset.a='1';$('ed').textContent='Точно удалить?';return}D.binders=D.binders.filter(b=>b.id!=edit.id);save();edit=null;renderList();toast('Удалено')};
+}
+function renderNotes(){main.innerHTML='<textarea id="notes" placeholder="Заметки: цены, коды, адреса…"></textarea>';const n=$('notes');n.value=D.notes||'';let t=0;n.oninput=()=>{clearTimeout(t);t=setTimeout(()=>{D.notes=n.value;save()},400)}}
+function accel(e){
+  const k=e.code;if(/^(Control|Shift|Alt|Meta)/.test(k))return null;
+  let key=null;if(/^F\d+$/.test(k))key=k;else if(/^Key[A-Z]$/.test(k))key=k.slice(3);else if(/^Digit\d$/.test(k))key=k.slice(5);else if(k=='Space')key='Space';else if(/^Numpad\d$/.test(k))key='num'+k.slice(6);else if(k=='Backquote')key='`';else if(k=='Insert'||k=='Delete'||k=='Home'||k=='End'||k=='PageUp'||k=='PageDown')key=k;
+  if(!key)return null;const m=[];if(e.ctrlKey)m.push('Ctrl');if(e.altKey)m.push('Alt');if(e.shiftKey)m.push('Shift');return m.concat(key).join('+');
+}
+function renderSet(){
+  main.innerHTML='<div class="srow"><span>Горячая клавиша<small>Нажми на поле и новое сочетание</small></span><input type="text" id="shk" readonly value="'+esc(D.settings.hotkey)+'"></div><div class="srow"><span>Твой ник<small>Подставляется вместо <code>{name}</code></small></span><input type="text" id="snk" value="'+esc(D.settings.nick)+'"></div><div class="srow"><span>Прозрачность окна</span><input type="range" id="sop" min="55" max="100" value="'+Math.round(D.settings.opacity*100)+'"></div><div class="note" style="padding:14px 0 6px;line-height:1.6">Оверлей видно поверх игры, если она запущена в режиме «окно» или «окно без рамки». В полноэкранном эксклюзивном режиме окно не покажется.<br>Программа только копирует текст в буфер обмена. В игре открой чат и нажми <kbd>Ctrl</kbd>+<kbd>V</kbd>. Клавиши за тебя она не нажимает.</div><div class="acts"><button class="btn r" id="sq">Выйти из программы</button></div>';
+  const h=$('shk');h.onfocus=()=>{h.value='нажми сочетание…'};h.onblur=()=>{h.value=D.settings.hotkey};
+  h.onkeydown=async e=>{e.preventDefault();const a=accel(e);if(!a)return;const ok=await api.setHotkey(a);if(ok){D.settings.hotkey=a;$('hk').textContent=a;h.blur();toast('Клавиша: '+a)}else{toast('Эта клавиша занята системой или другой программой',1)}};
+  $('snk').oninput=e=>{D.settings.nick=e.target.value;save()};
+  $('sop').oninput=e=>{D.settings.opacity=+e.target.value/100;save()};
+  $('sq').onclick=()=>api.quit();
+}
+$('bq').onclick=()=>api.hide();$('bq').title='Скрыть';$('bq').textContent='✕';
+api.onShow(()=>{cmd.focus();cmd.select();renderQueue();updHint();if(tab!='b'&&!cmd.value){}});
+api.onHotkeyError(k=>toast('Не удалось занять '+k+'. Выбери другую клавишу в настройках',1));
+api.load().then(d=>{D=d;$('hk').textContent=D.settings.hotkey;render();updHint();cmd.focus()});
+})();
+</script></body></html>

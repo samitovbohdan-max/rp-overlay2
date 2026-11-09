@@ -1,0 +1,22 @@
+{
+  "name": "rp-overlay",
+  "version": "1.0.0",
+  "description": "RP Оверлей — командная строка и биндеры поверх игры по горячей клавише",
+  "main": "main.js",
+  "author": "RP Overlay",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --publish never"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.rpoverlay.app",
+    "productName": "RP Overlay",
+    "files": ["main.js", "preload.js", "index.html", "icon.png"],
+    "win": { "target": "portable", "icon": "icon.png" },
+    "portable": { "artifactName": "RP-Overlay-${version}.exe" }
+  }
+}
