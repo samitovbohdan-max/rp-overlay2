@@ -44,121 +44,184 @@ main::-webkit-scrollbar{width:8px}main::-webkit-scrollbar-thumb{background:rgba(
 .srow input[type=range]{width:150px;accent-color:#7cf0b2}
 #toast{position:absolute;left:50%;bottom:14px;transform:translate(-50%,8px);padding:9px 14px;border-radius:10px;background:#0b3a2a;border:1px solid var(--acc);color:#dffbea;font-size:13px;font-weight:600;opacity:0;transition:.2s;pointer-events:none;max-width:90%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #toast.on{opacity:1;transform:translate(-50%,0)}#toast.bad{background:#3a1010;border-color:var(--bad);color:#ffd9d9}
+
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
+.chip{border:1px solid var(--line);background:var(--card);color:var(--dim);border-radius:999px;padding:6px 12px;font:700 12px "Segoe UI",sans-serif;cursor:pointer;white-space:nowrap}
+.chip.on{background:rgba(124,240,178,.14);border-color:rgba(124,240,178,.55);color:var(--ink)}
+.chip i{font-style:normal;color:var(--acc);margin-left:6px}
+.sub{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.sub button{border:1px solid var(--line);background:transparent;color:var(--dim);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer}.sub button:hover{color:var(--ink)}
+.sec{font:800 11px "Segoe UI",sans-serif;letter-spacing:.1em;color:var(--dim);margin:6px 0 8px}
+.pack{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:11px;background:var(--card);margin-bottom:7px}
+.pack .m{flex:1;min-width:0}.pack b{font-size:14px}.pack small{display:block;color:var(--dim);font-size:12px;margin-top:2px}
+.row .cg{font-size:11px;color:var(--dim);border:1px solid var(--line);border-radius:6px;padding:2px 6px;white-space:nowrap}
+.form select{width:100%;border:1px solid var(--line);background:rgba(0,0,0,.3);color:var(--ink);border-radius:9px;padding:9px 11px;font:14px "Segoe UI",sans-serif}
+.form select option{background:#0d1119}
 </style></head><body>
 <div id="app">
   <header><span class="lg">RP OVERLAY</span><span class="hk">Закрыть: <kbd id="hk">F5</kbd> или <kbd>Esc</kbd></span><button class="x" id="bq" title="Выйти из программы">⏻</button></header>
   <div class="cmdw">
-    <div class="cmd"><b>&gt;</b><input id="cmd" autocomplete="off" spellcheck="false" placeholder="Команда или название биндера…"></div>
+    <div class="cmd"><b>&gt;</b><input id="cmd" autocomplete="off" spellcheck="false" placeholder="Команда или название скрипта…"></div>
     <div class="hint" id="hint"></div>
     <div class="queue" id="queue"></div>
   </div>
-  <nav><button data-t="b" class="on">Биндеры</button><button data-t="n">Заметки</button><button data-t="s">Настройки</button></nav>
+  <nav><button data-t="b" class="on">Скрипты</button><button data-t="m">Маркет</button><button data-t="n">Заметки</button><button data-t="s">Настройки</button></nav>
   <main id="main"></main>
   <div id="toast"></div>
 </div>
 <script>
 (function(){
 const $=id=>document.getElementById(id);
-const api=window.api||{load:async()=>({settings:{hotkey:'F5',nick:'Тест',opacity:.96},notes:'',binders:[{id:'b1',name:'Показать документы',trigger:'/док',lines:['/me достаёт документы','/do Паспорт в руках.']},{id:'b2',name:'Приветствие',trigger:'/привет',lines:['Здравствуйте!']}]}),save(){},copy(){},hide(){},quit(){},setHotkey:async()=>true,onShow(){},onHotkeyError(){}};
-let D=null,tab='b',edit=null,sel=0,queue=null,tt=0;
+const api=window.api||{load:async()=>({settings:{hotkey:'F5',nick:'Тест',opacity:.96},notes:'',catalogs:[{id:'c1',name:'Основное',items:[{id:'b1',name:'Показать документы',trigger:'/док',desc:'',lines:['/me достаёт документы','/do Паспорт в руках.']},{id:'b2',name:'Приветствие',trigger:'/привет',desc:'',lines:['Здравствуйте!']}]},{id:'c2',name:'Полиция',items:[{id:'b3',name:'Остановка',trigger:'/стоп',desc:'',lines:['/s Полиция, остановите транспорт!']}]}]}),save(){},copy(){},hide(){},quit(){},setHotkey:async()=>true,onShow(){},onHotkeyError(){}};
+let D=null,tab='b',edit=null,sel=0,queue=null,tt=0,cur=null,catEdit=null;
 const cmd=$('cmd'),main=$('main');
+const PACKS=[
+ {name:'RP-база',desc:'Отыгровки действий и обращений',items:[
+  {name:'Достать телефон',trigger:'/тел',lines:['/me достаёт телефон из кармана','/do Телефон в руке.']},
+  {name:'Передать предмет',trigger:'/дать',lines:['/me протягивает предмет собеседнику','/do Предмет в руке собеседника.']},
+  {name:'Осмотр места',trigger:'/осм',lines:['/me внимательно осматривается','/try замечает что-то необычное']}]},
+ {name:'Полиция',desc:'Шаблоны для сотрудников порядка',items:[
+  {name:'Представиться',trigger:'/пред',lines:['/me достаёт удостоверение и раскрывает его','/do Удостоверение раскрыто в руке.','Здравствуйте, я {name}, предъявите документы.']},
+  {name:'Остановка транспорта',trigger:'/стоп',lines:['/s Говорит полиция! Остановите транспортное средство и заглушите двигатель.']},
+  {name:'Наручники',trigger:'/нар',lines:['/me достаёт наручники с пояса','/me надевает наручники на задержанного','/do Наручники защёлкнуты.']}]},
+ {name:'Медик',desc:'Шаблоны для медицинских ролей',items:[
+  {name:'Осмотр пациента',trigger:'/мед',lines:['/me надевает перчатки и осматривает пациента','/do На осмотре видны признаки усталости.','Расскажите, что вас беспокоит?']},
+  {name:'Первая помощь',trigger:'/пом',lines:['/me достаёт аптечку из сумки','/me обрабатывает повреждение и накладывает повязку','/do Повязка наложена.']}]},
+ {name:'Таксист',desc:'Работа в такси',items:[
+  {name:'Встреча пассажира',trigger:'/так',lines:['Здравствуйте! Куда едем?']},
+  {name:'Оплата',trigger:'/опл',lines:['С вас {rnd:100-500} рублей, спасибо за поездку!']}]}
+];
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function uid(p){return p+Date.now().toString(36)+Math.floor(Math.random()*1e4).toString(36)}
 function save(){api.save(D)}
-function toast(t,bad){const e=$('toast');e.textContent=t;e.className='on'+(bad?' bad':'');clearTimeout(tt);tt=setTimeout(()=>e.className='',2200)}
-/* переменные */
+function toast(t,bad){const e=$('toast');e.textContent=t;e.className='on'+(bad?' bad':'');clearTimeout(tt);tt=setTimeout(()=>e.className='',2400)}
+function catOf(id){return D.catalogs.find(c=>c.id==id)}
+function all(){const r=[];D.catalogs.forEach(c=>c.items.forEach(b=>r.push({b,c})));return r}
 function fill(s){
   const n=new Date(),p=v=>String(v).padStart(2,'0');
   return s.replace(/\{name\}/g,D.settings.nick).replace(/\{date\}/g,p(n.getDate())+'.'+p(n.getMonth()+1)+'.'+n.getFullYear()).replace(/\{time\}/g,p(n.getHours())+':'+p(n.getMinutes()))
-   .replace(/\{rnd\}/g,()=>1+Math.floor(Math.random()*100)).replace(/\{rnd:(\d+)-(\d+)\}/g,(_,a,b)=>{a=+a;b=+b;return a+Math.floor(Math.random()*(b-a+1))});
+   .replace(/\{rnd:(\d+)-(\d+)\}/g,(_,a,b)=>{a=+a;b=+b;return a+Math.floor(Math.random()*(b-a+1))}).replace(/\{rnd\}/g,()=>1+Math.floor(Math.random()*100));
 }
-function matches(q){q=q.trim().toLowerCase();if(!q)return D.binders;return D.binders.filter(b=>b.name.toLowerCase().includes(q)||b.trigger.toLowerCase().includes(q))}
-/* копирование */
+function matches(q){q=q.trim().toLowerCase();const a=all();if(!q)return a.filter(x=>x.c.id==cur);return a.filter(x=>x.b.name.toLowerCase().includes(q)||x.b.trigger.toLowerCase().includes(q)||(x.b.desc||'').toLowerCase().includes(q))}
+function findExact(v){v=v.trim().toLowerCase();const a=all();return a.find(x=>x.c.id==cur&&x.b.trigger.toLowerCase()==v)||a.find(x=>x.b.trigger.toLowerCase()==v)}
 function copy(text){api.copy(fill(text))}
-function runBinder(b){
-  if(!b.lines.length){toast('В биндере нет строк',1);return}
-  queue={b,i:0};step();
-}
+function runBinder(b){if(!b.lines.length){toast('В скрипте нет строк',1);return}queue={b,i:0};step()}
 function step(){
-  const q=queue;if(!q)return;const line=q.b.lines[q.i];copy(line);q.i++;
-  const more=q.i<q.b.lines.length;
+  const q=queue;if(!q)return;copy(q.b.lines[q.i]);q.i++;const more=q.i<q.b.lines.length;
   toast('Скопировано '+q.i+'/'+q.b.lines.length+(more?'. Открой оверлей снова за следующей строкой':''));
-  if(!more)queue=null;
-  cmd.value='';renderQueue();setTimeout(()=>api.hide(),120);
+  if(!more)queue=null;cmd.value='';renderQueue();setTimeout(()=>api.hide(),120);
 }
 function renderQueue(){
   const e=$('queue');if(!queue){e.className='queue';return}
-  e.className='queue on';e.innerHTML='Биндер «<b>'+esc(queue.b.name)+'</b>», следующая строка '+(queue.i+1)+'/'+queue.b.lines.length+': <code>'+esc(fill(queue.b.lines[queue.i]))+'</code><br><span style="color:var(--dim)">Enter с пустой строкой копирует её. Esc сбрасывает очередь.</span>';
+  e.className='queue on';e.innerHTML='Скрипт «<b>'+esc(queue.b.name)+'</b>», следующая строка '+(queue.i+1)+'/'+queue.b.lines.length+': <code>'+esc(fill(queue.b.lines[queue.i]))+'</code><br><span style="color:var(--dim)">Enter с пустой строкой копирует её. Esc сбрасывает очередь.</span>';
 }
-/* командная строка */
 function updHint(){
   const v=cmd.value,m=matches(v),h=$('hint');
-  if(queue&&!v.trim()){h.innerHTML='<em>Enter</em> — скопировать следующую строку биндера';return}
+  if(queue&&!v.trim()){h.innerHTML='<em>Enter</em> — скопировать следующую строку скрипта';return}
   if(!v.trim()){h.innerHTML='Введи текст и нажми <em>Enter</em>: он попадёт в буфер, дальше в игре <kbd>Ctrl</kbd>+<kbd>V</kbd>';return}
-  const exact=D.binders.find(b=>b.trigger.toLowerCase()==v.trim().toLowerCase());
-  if(exact)h.innerHTML='<em>Enter</em> — запустить биндер «'+esc(exact.name)+'»';
-  else if(!/^\//.test(v)&&!/\s/.test(v)&&m.length)h.innerHTML='<em>Enter</em> — запустить «'+esc(m[Math.min(sel,m.length-1)].name)+'» (↑↓ выбор)';
+  const ex=findExact(v);
+  if(ex)h.innerHTML='<em>Enter</em> — запустить скрипт «'+esc(ex.b.name)+'»';
+  else if(!/^\//.test(v)&&!/\s/.test(v)&&m.length)h.innerHTML='<em>Enter</em> — запустить «'+esc(m[Math.min(sel,m.length-1)].b.name)+'» (↑↓ выбор)';
   else h.innerHTML='<em>Enter</em> — скопировать текст в буфер обмена';
 }
-cmd.addEventListener('input',()=>{sel=0;if(tab!='b'&&cmd.value.trim()){tab='b';tabs()}renderList();updHint()});
+cmd.addEventListener('input',()=>{sel=0;if(tab!='b'&&cmd.value.trim()){tab='b';tabs()}else renderList();updHint()});
 cmd.addEventListener('keydown',e=>{
   if(e.key=='Enter'){
     e.preventDefault();const v=cmd.value;
     if(!v.trim()){if(queue)step();return}
-    const exact=D.binders.find(b=>b.trigger.toLowerCase()==v.trim().toLowerCase());
-    if(exact)return runBinder(exact);
+    const ex=findExact(v);if(ex)return runBinder(ex.b);
     const m=matches(v);
-    if(!/^\//.test(v)&&!/\s/.test(v)&&m.length)return runBinder(m[Math.min(sel,m.length-1)]);
+    if(!/^\//.test(v)&&!/\s/.test(v)&&m.length)return runBinder(m[Math.min(sel,m.length-1)].b);
     copy(v);toast('Скопировано: '+fill(v));cmd.value='';updHint();setTimeout(()=>api.hide(),120);
   }else if(e.key=='ArrowDown'){e.preventDefault();sel=Math.min(sel+1,matches(cmd.value).length-1);renderList();updHint()}
   else if(e.key=='ArrowUp'){e.preventDefault();sel=Math.max(0,sel-1);renderList();updHint()}
   else if(e.key=='Escape'){e.preventDefault();if(cmd.value){cmd.value='';renderList();updHint()}else if(queue){queue=null;renderQueue();updHint()}else api.hide()}
 });
 addEventListener('keydown',e=>{if(e.key=='Escape'&&document.activeElement!==cmd)api.hide()});
-/* вкладки */
-function tabs(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==tab));edit=null;render()}
+function tabs(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==tab));edit=null;catEdit=null;render()}
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;tabs()});
-function render(){if(tab=='b')renderList();else if(tab=='n')renderNotes();else renderSet()}
+function render(){if(tab=='b')renderList();else if(tab=='m')renderMarket();else if(tab=='n')renderNotes();else renderSet()}
+/* ---- скрипты и каталоги ---- */
 function renderList(){
   if(tab!='b')return;
   if(edit){renderEdit();return}
-  const m=matches(cmd.value);
-  let h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span class="note">Нажми на биндер, чтобы скопировать первую строку</span><button class="btn" id="add">+ Новый биндер</button></div>';
-  if(!m.length)h+='<div class="note" style="padding:14px 4px">Ничего не найдено. Enter скопирует введённый текст как есть.</div>';
-  h+=m.map((b,i)=>'<div class="row'+(i==sel&&cmd.value?' sel':'')+'" data-id="'+b.id+'"><span class="t">'+esc(b.trigger)+'</span><span class="m"><span class="n">'+esc(b.name)+'</span><span class="l">'+esc(b.lines.join('  ›  '))+'</span></span><button class="ed" data-e="'+b.id+'">Изменить</button></div>').join('');
+  if(catEdit){renderCatEdit();return}
+  if(!catOf(cur))cur=D.catalogs[0].id;
+  const q=cmd.value.trim(),m=matches(cmd.value),cc=catOf(cur);
+  let h='<div class="chips">'+D.catalogs.map(c=>'<button class="chip'+(c.id==cur&&!q?' on':'')+'" data-c="'+c.id+'">'+esc(c.name)+'<i>'+c.items.length+'</i></button>').join('')+'<button class="chip" id="addc">+ Каталог</button></div>';
+  if(!q)h+='<div class="sub"><button id="ren">Переименовать каталог</button><button id="exp">Экспорт каталога</button><button id="delc">Удалить каталог</button></div>';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span class="note">'+(q?'Поиск по всем каталогам':'Нажми на скрипт, чтобы скопировать первую строку')+'</span><button class="btn" id="add">+ Новый скрипт</button></div>';
+  if(!m.length)h+='<div class="note" style="padding:14px 4px">'+(q?'Ничего не найдено. Enter скопирует введённый текст как есть.':'В каталоге «'+esc(cc.name)+'» пока пусто. Добавь скрипт или поставь готовый набор во вкладке «Маркет».')+'</div>';
+  h+=m.map((x,i)=>'<div class="row'+(i==sel&&q?' sel':'')+'" data-id="'+x.b.id+'"><span class="t">'+esc(x.b.trigger)+'</span><span class="m"><span class="n">'+esc(x.b.name)+'</span><span class="l">'+esc(x.b.desc||x.b.lines.join('  ›  '))+'</span></span>'+(q?'<span class="cg">'+esc(x.c.name)+'</span>':'')+'<button class="ed" data-e="'+x.b.id+'">Изменить</button></div>').join('');
   main.innerHTML=h;
-  $('add').onclick=()=>{edit={id:'b'+Date.now(),name:'',trigger:'',lines:[],isNew:1};renderEdit()};
+  $('add').onclick=()=>{edit={id:uid('b'),name:'',trigger:'',desc:'',lines:[],isNew:1,cat:cur};renderEdit()};
+  if($('addc'))$('addc').onclick=()=>{catEdit={isNew:1,name:''};renderCatEdit()};
+  if($('ren'))$('ren').onclick=()=>{catEdit={id:cur,name:cc.name};renderCatEdit()};
+  if($('exp'))$('exp').onclick=()=>{api.copy(JSON.stringify({name:cc.name,items:cc.items.map(b=>({name:b.name,trigger:b.trigger,desc:b.desc||'',lines:b.lines}))},null,1));toast('Каталог скопирован. Отправь текст другу или сохрани в файл')};
+  if($('delc'))$('delc').onclick=()=>{if($('delc').dataset.a!='1'){$('delc').dataset.a='1';$('delc').textContent='Точно удалить со всеми скриптами?';return}
+    if(D.catalogs.length<2){toast('Нельзя удалить последний каталог',1);return}D.catalogs=D.catalogs.filter(c=>c.id!=cur);cur=D.catalogs[0].id;save();renderList();toast('Каталог удалён')};
 }
 main.addEventListener('click',e=>{
-  if(tab!='b'||edit)return;
-  const eb=e.target.closest('[data-e]');if(eb){e.stopPropagation();edit=JSON.parse(JSON.stringify(D.binders.find(b=>b.id==eb.dataset.e)));renderEdit();return}
-  const r=e.target.closest('.row');if(r){const b=D.binders.find(x=>x.id==r.dataset.id);if(b)runBinder(b)}
+  if(tab!='b'||edit||catEdit)return;
+  const ch=e.target.closest('[data-c]');if(ch){cur=ch.dataset.c;cmd.value='';sel=0;renderList();updHint();return}
+  const eb=e.target.closest('[data-e]');if(eb){e.stopPropagation();const x=all().find(y=>y.b.id==eb.dataset.e);edit=JSON.parse(JSON.stringify(x.b));edit.cat=x.c.id;renderEdit();return}
+  const r=e.target.closest('.row');if(r){const x=all().find(y=>y.b.id==r.dataset.id);if(x)runBinder(x.b)}
 });
-function renderEdit(){
-  main.innerHTML='<div class="form"><label>Название<input id="en" value="'+esc(edit.name)+'" placeholder="Например: Приветствие"></label><label>Команда (по ней запускается в строке)<input id="et" value="'+esc(edit.trigger)+'" placeholder="/привет"></label><label>Строки: одна строка = одно сообщение в чат<textarea id="el" placeholder="/me достаёт документы&#10;/do Документы в руках.">'+esc(edit.lines.join('\n'))+'</textarea></label><div class="note">Переменные: <code>{name}</code> твой ник, <code>{time}</code> время, <code>{date}</code> дата, <code>{rnd}</code> число 1–100, <code>{rnd:1-6}</code> своё число.</div><div class="acts"><button class="btn" id="es">Сохранить</button><button class="btn g" id="ec">Отмена</button>'+(edit.isNew?'':'<button class="btn r" id="ed">Удалить</button>')+'</div></div>';
-  $('es').onclick=()=>{const n=$('en').value.trim(),t=$('et').value.trim(),l=$('el').value.split('\n').map(s=>s.trim()).filter(Boolean);
-    if(!n||!t){toast('Заполни название и команду',1);return}
-    if(D.binders.some(b=>b.id!=edit.id&&b.trigger.toLowerCase()==t.toLowerCase())){toast('Такая команда уже есть',1);return}
-    const o={id:edit.id,name:n,trigger:t,lines:l},i=D.binders.findIndex(b=>b.id==edit.id);if(i>=0)D.binders[i]=o;else D.binders.push(o);save();edit=null;renderList();toast('Биндер сохранён')};
-  $('ec').onclick=()=>{edit=null;renderList()};
-  if($('ed'))$('ed').onclick=()=>{if($('ed').dataset.a!='1'){$('ed').dataset.a='1';$('ed').textContent='Точно удалить?';return}D.binders=D.binders.filter(b=>b.id!=edit.id);save();edit=null;renderList();toast('Удалено')};
+function renderCatEdit(){
+  main.innerHTML='<div class="form"><label>Название каталога (например: проект или сервер)<input id="cn" value="'+esc(catEdit.name)+'" placeholder="Например: Полиция Arizona"></label><div class="acts"><button class="btn" id="cs">Сохранить</button><button class="btn g" id="cc">Отмена</button></div></div>';
+  $('cn').focus();
+  $('cs').onclick=()=>{const n=$('cn').value.trim();if(!n){toast('Введи название',1);return}
+    if(catEdit.isNew){const c={id:uid('c'),name:n,items:[]};D.catalogs.push(c);cur=c.id}else catOf(catEdit.id).name=n;save();catEdit=null;renderList()};
+  $('cc').onclick=()=>{catEdit=null;renderList()};
 }
+function renderEdit(){
+  main.innerHTML='<div class="form"><label>Название<input id="en" value="'+esc(edit.name)+'" placeholder="Например: Приветствие"></label><label>Команда (по ней запускается в строке)<input id="et" value="'+esc(edit.trigger)+'" placeholder="/привет"></label><label>Описание (необязательно)<input id="ed2" value="'+esc(edit.desc||'')+'" placeholder="Когда использовать"></label><label>Каталог<select id="ecat">'+D.catalogs.map(c=>'<option value="'+c.id+'"'+(c.id==edit.cat?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></label><label>Строки: одна строка = одно сообщение в чат<textarea id="el" placeholder="/me достаёт документы&#10;/do Документы в руках.">'+esc(edit.lines.join('\n'))+'</textarea></label><div class="note">Переменные: <code>{name}</code> ник, <code>{time}</code> время, <code>{date}</code> дата, <code>{rnd}</code> число 1–100, <code>{rnd:1-6}</code> своё число.</div><div class="acts"><button class="btn" id="es">Сохранить</button><button class="btn g" id="ec">Отмена</button>'+(edit.isNew?'':'<button class="btn r" id="ed">Удалить</button>')+'</div></div>';
+  $('es').onclick=()=>{const n=$('en').value.trim(),t=$('et').value.trim(),l=$('el').value.split('\n').map(s=>s.trim()).filter(Boolean),cid=$('ecat').value;
+    if(!n||!t){toast('Заполни название и команду',1);return}
+    const dup=catOf(cid).items.some(b=>b.id!=edit.id&&b.trigger.toLowerCase()==t.toLowerCase());if(dup){toast('В этом каталоге такая команда уже есть',1);return}
+    D.catalogs.forEach(c=>c.items=c.items.filter(b=>b.id!=edit.id));
+    catOf(cid).items.push({id:edit.id,name:n,trigger:t,desc:$('ed2').value.trim(),lines:l});cur=cid;save();edit=null;renderList();toast('Скрипт сохранён')};
+  $('ec').onclick=()=>{edit=null;renderList()};
+  if($('ed'))$('ed').onclick=()=>{if($('ed').dataset.a!='1'){$('ed').dataset.a='1';$('ed').textContent='Точно удалить?';return}D.catalogs.forEach(c=>c.items=c.items.filter(b=>b.id!=edit.id));save();edit=null;renderList();toast('Удалено')};
+}
+/* ---- маркет ---- */
+function addCatalog(name,items){
+  let n=name,k=2;while(D.catalogs.some(c=>c.name==n))n=name+' '+k++;
+  const c={id:uid('c'),name:n,items:items.filter(b=>b&&b.name&&b.trigger&&Array.isArray(b.lines)).map(b=>({id:uid('b'),name:String(b.name),trigger:String(b.trigger),desc:String(b.desc||''),lines:b.lines.map(String)}))};
+  D.catalogs.push(c);save();return c;
+}
+function renderMarket(){
+  let h='<div class="sec">ГОТОВЫЕ НАБОРЫ</div>'+PACKS.map((p,i)=>'<div class="pack"><div class="m"><b>'+esc(p.name)+'</b><small>'+esc(p.desc)+' · '+p.items.length+' скр.</small></div><button class="btn" data-p="'+i+'">Добавить</button></div>').join('');
+  h+='<div class="sec" style="margin-top:14px">ИМПОРТ</div><div class="form"><textarea id="imp" style="min-height:90px" placeholder="Вставь сюда текст каталога, который тебе прислали (Ctrl+V)"></textarea><div class="acts"><button class="btn" id="doimp">Импортировать</button><button class="btn g" id="expall">Скопировать все каталоги</button></div></div>';
+  h+='<div class="note" style="margin-top:12px">Шаблоны в наборах общие, подправь их под правила своего сервера. Чтобы поделиться своим каталогом, открой его во вкладке «Скрипты» и нажми «Экспорт каталога».</div>';
+  main.innerHTML=h;
+  main.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{const p=PACKS[+b.dataset.p],c=addCatalog(p.name,p.items);cur=c.id;toast('Набор «'+c.name+'» добавлен в Скрипты')});
+  $('doimp').onclick=()=>{
+    try{const j=JSON.parse($('imp').value.trim());let n=0;
+      const list=j.catalogs?j.catalogs:Array.isArray(j)?[{name:'Импорт',items:j}]:[j];
+      list.forEach(c=>{if(c&&Array.isArray(c.items)){const r=addCatalog(c.name||'Импорт',c.items);n+=r.items.length;cur=r.id}});
+      if(!n)throw 0;$('imp').value='';toast('Импортировано скриптов: '+n)}catch(e){toast('Не получилось прочитать текст. Нужен каталог, скопированный из этой программы',1)}};
+  $('expall').onclick=()=>{api.copy(JSON.stringify({catalogs:D.catalogs.map(c=>({name:c.name,items:c.items.map(b=>({name:b.name,trigger:b.trigger,desc:b.desc||'',lines:b.lines}))}))},null,1));toast('Все каталоги скопированы')};
+}
+/* ---- заметки и настройки ---- */
 function renderNotes(){main.innerHTML='<textarea id="notes" placeholder="Заметки: цены, коды, адреса…"></textarea>';const n=$('notes');n.value=D.notes||'';let t=0;n.oninput=()=>{clearTimeout(t);t=setTimeout(()=>{D.notes=n.value;save()},400)}}
 function accel(e){
   const k=e.code;if(/^(Control|Shift|Alt|Meta)/.test(k))return null;
-  let key=null;if(/^F\d+$/.test(k))key=k;else if(/^Key[A-Z]$/.test(k))key=k.slice(3);else if(/^Digit\d$/.test(k))key=k.slice(5);else if(k=='Space')key='Space';else if(/^Numpad\d$/.test(k))key='num'+k.slice(6);else if(k=='Backquote')key='`';else if(k=='Insert'||k=='Delete'||k=='Home'||k=='End'||k=='PageUp'||k=='PageDown')key=k;
+  let key=null;if(/^F\d+$/.test(k))key=k;else if(/^Key[A-Z]$/.test(k))key=k.slice(3);else if(/^Digit\d$/.test(k))key=k.slice(5);else if(k=='Space')key='Space';else if(/^Numpad\d$/.test(k))key='num'+k.slice(6);else if(k=='Backquote')key='`';else if(['Insert','Delete','Home','End','PageUp','PageDown'].includes(k))key=k;
   if(!key)return null;const m=[];if(e.ctrlKey)m.push('Ctrl');if(e.altKey)m.push('Alt');if(e.shiftKey)m.push('Shift');return m.concat(key).join('+');
 }
 function renderSet(){
-  main.innerHTML='<div class="srow"><span>Горячая клавиша<small>Нажми на поле и новое сочетание</small></span><input type="text" id="shk" readonly value="'+esc(D.settings.hotkey)+'"></div><div class="srow"><span>Твой ник<small>Подставляется вместо <code>{name}</code></small></span><input type="text" id="snk" value="'+esc(D.settings.nick)+'"></div><div class="srow"><span>Прозрачность окна</span><input type="range" id="sop" min="55" max="100" value="'+Math.round(D.settings.opacity*100)+'"></div><div class="note" style="padding:14px 0 6px;line-height:1.6">Оверлей видно поверх игры, если она запущена в режиме «окно» или «окно без рамки». В полноэкранном эксклюзивном режиме окно не покажется.<br>Программа только копирует текст в буфер обмена. В игре открой чат и нажми <kbd>Ctrl</kbd>+<kbd>V</kbd>. Клавиши за тебя она не нажимает.</div><div class="acts"><button class="btn r" id="sq">Выйти из программы</button></div>';
-  const h=$('shk');h.onfocus=()=>{h.value='нажми сочетание…'};h.onblur=()=>{h.value=D.settings.hotkey};
-  h.onkeydown=async e=>{e.preventDefault();const a=accel(e);if(!a)return;const ok=await api.setHotkey(a);if(ok){D.settings.hotkey=a;$('hk').textContent=a;h.blur();toast('Клавиша: '+a)}else{toast('Эта клавиша занята системой или другой программой',1)}};
+  main.innerHTML='<div class="srow"><span>Горячая клавиша<small>Нажми на поле и новое сочетание</small></span><input type="text" id="shk" readonly value="'+esc(D.settings.hotkey)+'"></div><div class="srow"><span>Твой ник<small>Подставляется вместо <code>{name}</code></small></span><input type="text" id="snk" value="'+esc(D.settings.nick)+'"></div><div class="srow"><span>Скрывать от записи экрана<small>Окно не видно в OBS, Game Bar и скриншотах, а тебе видно</small></span><input type="checkbox" id="shc" style="width:20px;height:20px;accent-color:#7cf0b2"'+(D.settings.hideCapture!==false?' checked':'')+'></div><div class="srow"><span>Прозрачность окна</span><input type="range" id="sop" min="55" max="100" value="'+Math.round(D.settings.opacity*100)+'"></div><div class="note" style="padding:14px 0 6px;line-height:1.6">Оверлей видно поверх игры, если она запущена в режиме «окно» или «окно без рамки». В полноэкранном эксклюзивном режиме окно не покажется.<br>Программа только копирует текст в буфер обмена. В игре открой чат и нажми <kbd>Ctrl</kbd>+<kbd>V</kbd>. Клавиши за тебя она не нажимает.</div><div class="acts"><button class="btn r" id="sq">Выйти из программы</button></div>';
+  const hh=$('shk');hh.onfocus=()=>{hh.value='нажми сочетание…'};hh.onblur=()=>{hh.value=D.settings.hotkey};
+  hh.onkeydown=async e=>{e.preventDefault();const a=accel(e);if(!a)return;const ok=await api.setHotkey(a);if(ok){D.settings.hotkey=a;$('hk').textContent=a;hh.blur();toast('Клавиша: '+a)}else toast('Эта клавиша занята системой или другой программой',1)};
   $('snk').oninput=e=>{D.settings.nick=e.target.value;save()};
+  $('shc').onchange=e=>{D.settings.hideCapture=e.target.checked;save();toast(e.target.checked?'Окно скрыто от записи':'Окно будет видно в записи')};
   $('sop').oninput=e=>{D.settings.opacity=+e.target.value/100;save()};
   $('sq').onclick=()=>api.quit();
 }
 $('bq').onclick=()=>api.hide();$('bq').title='Скрыть';$('bq').textContent='✕';
-api.onShow(()=>{cmd.focus();cmd.select();renderQueue();updHint();if(tab!='b'&&!cmd.value){}});
+api.onShow(()=>{cmd.focus();cmd.select();renderQueue();updHint()});
 api.onHotkeyError(k=>toast('Не удалось занять '+k+'. Выбери другую клавишу в настройках',1));
-api.load().then(d=>{D=d;$('hk').textContent=D.settings.hotkey;render();updHint();cmd.focus()});
+api.load().then(d=>{D=d;if(!D.catalogs)D.catalogs=[{id:'c1',name:'Основное',items:D.binders||[]}];cur=D.catalogs[0].id;$('hk').textContent=D.settings.hotkey;render();updHint();cmd.focus()});
 })();
 </script></body></html>

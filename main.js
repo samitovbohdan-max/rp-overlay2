@@ -4,20 +4,23 @@ const fs = require('fs'), path = require('path');
 let win, tray, file, data;
 
 const DEFAULTS = {
-  settings: { hotkey: 'F5', nick: 'Имя_Фамилия', opacity: 0.96 },
+  settings: { hotkey: 'F5', nick: 'Имя_Фамилия', opacity: 0.96, hideCapture: true },
   notes: 'Здесь можно хранить заметки: цены, коды, адреса, правила.\n',
-  binders: [
-    { id: 'b1', name: 'Показать документы', trigger: '/док', lines: ['/me достаёт документы из кармана и показывает их', '/do Паспорт в руках.', '/showpass {id}'] },
-    { id: 'b2', name: 'Приветствие', trigger: '/привет', lines: ['Здравствуйте! Чем могу помочь?'] },
-    { id: 'b3', name: 'Осмотр', trigger: '/осмотр', lines: ['/me внимательно осматривает человека', '/do На лице заметны следы усталости.', '/try удалось ли выяснить причину'] },
-    { id: 'b4', name: 'Время', trigger: '/время', lines: ['/me смотрит на часы', '/do На часах {time}, {date}.'] }
+  catalogs: [
+    { id: 'c1', name: 'Основное', items: [
+      { id: 'b1', name: 'Показать документы', trigger: '/док', desc: '', lines: ['/me достаёт документы из кармана и показывает их', '/do Паспорт в руках.', '/showpass {id}'] },
+      { id: 'b2', name: 'Приветствие', trigger: '/привет', desc: '', lines: ['Здравствуйте! Чем могу помочь?'] },
+      { id: 'b3', name: 'Время', trigger: '/время', desc: '', lines: ['/me смотрит на часы', '/do На часах {time}, {date}.'] }
+    ] }
   ]
 };
 function load() {
   try { data = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { data = null; }
   data = Object.assign({}, DEFAULTS, data || {});
   data.settings = Object.assign({}, DEFAULTS.settings, data.settings || {});
-  if (!Array.isArray(data.binders)) data.binders = DEFAULTS.binders;
+  if (Array.isArray(data.binders) && !(data.catalogs && data.catalogs.length)) { data.catalogs = [{ id: 'c1', name: 'Основное', items: data.binders }]; }
+  delete data.binders;
+  if (!Array.isArray(data.catalogs) || !data.catalogs.length) data.catalogs = DEFAULTS.catalogs;
 }
 function persist() { try { fs.writeFileSync(file, JSON.stringify(data, null, 2)); } catch (e) { console.error(e); } }
 
@@ -32,6 +35,7 @@ function createWindow() {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false }
   });
   win.setAlwaysOnTop(true, 'screen-saver');
+  win.setContentProtection(data.settings.hideCapture !== false);   // окно не попадает в запись экрана и скриншоты
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   win.loadFile('index.html');
   win.on('blur', () => { /* окно остаётся открытым, пока его не закроют F5 / Esc / Enter */ });
@@ -59,7 +63,7 @@ app.whenReady().then(() => {
   } catch (e) { }
 });
 ipcMain.handle('load', () => data);
-ipcMain.on('save', (_, d) => { data = d; persist(); if (win) win.setOpacity(data.settings.opacity || 0.96); });
+ipcMain.on('save', (_, d) => { data = d; persist(); if (win) { win.setOpacity(data.settings.opacity || 0.96); win.setContentProtection(data.settings.hideCapture !== false); } });
 ipcMain.on('copy', (_, t) => clipboard.writeText(String(t)));
 ipcMain.on('hide', () => win && win.hide());
 ipcMain.on('quit', () => app.quit());
